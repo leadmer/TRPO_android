@@ -1,0 +1,2 @@
+rootProject.name='TRPO_android'
+include ':app'
