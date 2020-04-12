@@ -1,11 +1,11 @@
 package etu.vt.trpo_android.ui.Fragment
 
+import android.app.Activity.RESULT_CANCELED
 import android.app.Activity.RESULT_OK
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.media.MediaScannerConnection
-import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
@@ -18,9 +18,10 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat.requestPermissions
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
+import androidx.fragment.app.FragmentManager
 import com.arellomobile.mvp.MvpAppCompatFragment
 import com.arellomobile.mvp.presenter.InjectPresenter
+import com.arellomobile.mvp.presenter.ProvidePresenter
 import etu.vt.trpo_android.R
 import etu.vt.trpo_android.present.presenter.PicturePresenter
 import etu.vt.trpo_android.present.view.PictureView
@@ -33,37 +34,28 @@ import java.util.*
 
 class PictureFragment: MvpAppCompatFragment(), PictureView {
 
-    private val CAMERA_REQUEST_CODE = 1
-    private val REQUEST_CAPTURE_IMAGE = 2
     private lateinit var imView: ImageView
     private lateinit var currentPhotoPath: String
-    private var MY_CAMERA_PERMISSION_REQUEST = 100
-    private val WRITE_FILE_PERMISSION_REQUEST = 101
-    private val READ_FILE_PERMISSION_REQUEST = 102
+    private val CAMERA_REQUEST_CODE = 1
+    private val MY_CAMERA_PERMISSION_REQUEST = 100
     private val WRITE_READ_FILE_PERMISSION_REQUEST = 102
-    private var bitmap : Bitmap? = null
+    private var mbitmap : Bitmap? = null
 
     @InjectPresenter
     lateinit var mPicturePresenter: PicturePresenter
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        var fm: FragmentManager
+        retainInstance = true //save state fragment
         mPicturePresenter.onShowPicture()
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?  ): View? {
-        return inflater.inflate(R.layout.picture_fragment, container, false)
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-
+        var view = inflater.inflate(R.layout.picture_fragment, container, false)
         imView = view.findViewById(R.id.im_view)
+
         val pictureButton = view.findViewById<Button>(R.id.take_picture)
         val saveButton = view.findViewById<Button>(R.id.save_button)
 
@@ -84,32 +76,26 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
             else
                 requestPermissionsCamera()
         }
-//        button?.setOnClickListener {
-//            findNavController().navigate(R.id.greetingsFragment2, null)
-//        }
+        return view
     }
 
-    override fun showPicture() {
-        if (bitmap != null){
-            imView.setImageBitmap(bitmap)
-        }
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        when (requestCode){
-            CAMERA_REQUEST_CODE -> if (resultCode == RESULT_OK){
-                if (data != null && data.hasExtra("data")){
-                    Log.d("bitmap", data.extras?.get("data").toString())
-                    bitmap = data.extras?.get("data") as Bitmap
-                    val bitmap = data.extras?.get("data") as Bitmap
-                    imView.setImageBitmap(bitmap)
+        when (requestCode) {
+            CAMERA_REQUEST_CODE -> {
+                if (resultCode == RESULT_OK) {
+                    if (data != null && data.hasExtra("data")) {
+                        mbitmap = data.extras?.get("data") as Bitmap
+                        imView.setImageBitmap(mbitmap)
+                    } else if (resultCode == RESULT_CANCELED) {
+                        Log.d("cancel extrass", "Canceled")
+                    }
                 }
-            }
-
-            REQUEST_CAPTURE_IMAGE -> if (resultCode == RESULT_OK){
-                val result =
-                    "File saved!"
-                Toast.makeText(activity, result, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -182,19 +168,23 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        if (grantResults.isNotEmpty() && grantResults.lastIndex+1 >= 2)
-        when(requestCode) {
-            MY_CAMERA_PERMISSION_REQUEST-> {
-                if (grantResults[0] == PackageManager.PERMISSION_GRANTED &&
-                    grantResults[1] == PackageManager.PERMISSION_GRANTED &&
-                    grantResults[2] == PackageManager.PERMISSION_GRANTED)
-                    clickTakePicture()
+        if (grantResults.isNotEmpty() && grantResults.lastIndex+1 >= 2){
+            Toast.makeText(activity, grantResults.toString(),
+                Toast.LENGTH_SHORT).show()
+            when(requestCode) {
+                MY_CAMERA_PERMISSION_REQUEST -> {
+                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED &&
+                        grantResults[1] == PackageManager.PERMISSION_GRANTED &&
+                        grantResults[2] == PackageManager.PERMISSION_GRANTED
+                    )
+                        clickTakePicture()
                 }
-//            WRITE_READ_FILE_PERMISSION_REQUEST-> {
-//                if (grantResults[0] == PackageManager.PERMISSION_GRANTED &&
-//                        grantResults[1] == PackageManager.PERMISSION_GRANTED)
-//                    createImageFile()
-//            }
+                //            WRITE_READ_FILE_PERMISSION_REQUEST-> {
+                //                if (grantResults[0] == PackageManager.PERMISSION_GRANTED &&
+                //                        grantResults[1] == PackageManager.PERMISSION_GRANTED)
+                //                    createImageFile()
+                //            }
+            }
         }
     }
 
@@ -212,7 +202,7 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
         try {
             photoFile = createImageFile()
             val out = FileOutputStream(photoFile)
-            bitmap!!.compress(Bitmap.CompressFormat.JPEG, 100, out)
+            mbitmap!!.compress(Bitmap.CompressFormat.JPEG, 80, out)
             out.flush()
             out.close()
             MediaStore.Images.Media.insertImage(activity?.contentResolver, photoFile.absolutePath, photoFile.name, photoFile.name)
@@ -221,21 +211,18 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
                 Log.i("ExternalStorage", "Scanned $path:")
                 Log.i("ExternalStorage", "-> uri=$uri")
             }
-            Toast.makeText(this.activity, "Сохранил " + photoFile.path.toString(),
+            Toast.makeText(activity, "Сохранил " + photoFile.path.toString(),
                 Toast.LENGTH_SHORT).show()
         }catch (e: Exception){
-            Toast.makeText(this.activity, "Ошибка при сохранении. Повторите попытку.",
+            Toast.makeText(activity, "Ошибка при сохранении. Повторите попытку.",
                 Toast.LENGTH_SHORT).show()
             Log.d("MyIlnarLog2", e.toString())
         }
-
-//        if (photoFile != null) {
-//            photoURI = FileProvider.getUriForFile(context!!, "etu.vt.trpo_android.provider", photoFile)
-//        }
-//        if (photoURI != null) {
-//            val intent = Intent(MediaStore.EXTRA_OUTPUT, photoURI)
-//            startActivityForResult(intent, REQUEST_CAPTURE_IMAGE)
-//        }
     }
 
+    override fun showPicture() {
+        if (mbitmap != null) {
+            imView.setImageBitmap(mbitmap)
+        }
+    }
 }

@@ -25,10 +25,6 @@ class LoginFragment: MvpAppCompatFragment(), LoginView {
         fun newInstance(): LoginFragment = LoginFragment()
     }
 
-    override fun isLogged() {
-        TODO("Not yet implemented")
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         this.retainInstance = true

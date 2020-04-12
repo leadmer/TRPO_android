@@ -25,10 +25,6 @@ class GreetingsFragment: MvpAppCompatFragment(), GreetingsView {
         fun newInstance(): GreetingsFragment = GreetingsFragment()
     }
 
-    override fun showGreetings() {
-        TODO("Not yet implemented")
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         this.retainInstance = true

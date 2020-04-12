@@ -4,6 +4,4 @@ import com.arellomobile.mvp.MvpView
 
 interface GreetingsView : MvpView {
 
-    fun showGreetings()
-
 }
