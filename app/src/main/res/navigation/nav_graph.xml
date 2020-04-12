@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/nav_graph"
+    app:startDestination="@id/greetingsFragment2">
+    <fragment
+        android:id="@+id/greetingsFragment2"
+        android:name="etu.vt.trpo_android.ui.Fragment.GreetingsFragment"
+        android:label="GreetingsFragment" >
+        <action
+            android:id="@+id/action_greetingsFragment2_to_pictureFragment"
+            app:destination="@id/pictureFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/loginFragment2"
+        android:name="etu.vt.trpo_android.ui.Fragment.LoginFragment"
+        android:label="LoginFragment" >
+        <action
+            android:id="@+id/action_loginFragment2_to_greetingsFragment2"
+            app:destination="@id/greetingsFragment2" />
+    </fragment>
+    <fragment
+        android:id="@+id/pictureFragment"
+        android:name="etu.vt.trpo_android.ui.Fragment.PictureFragment"
+        android:label="PictureFragment" >
+        <action
+            android:id="@+id/action_pictureFragment_to_loginFragment2"
+            app:destination="@id/loginFragment2" />
+    </fragment>
+</navigation>
