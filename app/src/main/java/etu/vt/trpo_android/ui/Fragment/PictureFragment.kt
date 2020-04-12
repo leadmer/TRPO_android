@@ -1,10 +1,11 @@
 package etu.vt.trpo_android.ui.Fragment
 
 import android.app.Activity.RESULT_OK
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
@@ -24,6 +25,7 @@ import etu.vt.trpo_android.R
 import etu.vt.trpo_android.present.presenter.PicturePresenter
 import etu.vt.trpo_android.present.view.PictureView
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
@@ -68,7 +70,7 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
         saveButton.setOnClickListener {
             if (ContextCompat.checkSelfPermission(context!!,
                     android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
-                createImageFile()
+                clickSavePicture()
             }
             else
                 requestPermissionsWriteFile()
@@ -97,20 +99,18 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
         when (requestCode){
             CAMERA_REQUEST_CODE -> if (resultCode == RESULT_OK){
                 if (data != null && data.hasExtra("data")){
-                    Log.d("bitmap", data.getStringExtra("data").toString())
+                    Log.d("bitmap", data.extras?.get("data").toString())
                     bitmap = data.extras?.get("data") as Bitmap
                     val bitmap = data.extras?.get("data") as Bitmap
                     imView.setImageBitmap(bitmap)
                 }
             }
 
-//            REQUEST_CAPTURE_IMAGE -> if (resultCode == RESULT_OK){
-//                if (data != null && data.hasExtra("data")){
-//                    bitmap = data.extras?.get("data") as Bitmap
-//                    val bitmap = data.extras?.get("data") as Bitmap
-//                    imView.setImageBitmap(bitmap)
-//                }
-//            }
+            REQUEST_CAPTURE_IMAGE -> if (resultCode == RESULT_OK){
+                val result =
+                    "File saved!"
+                Toast.makeText(activity, result, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -146,32 +146,33 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
     @Throws(IOException::class)
     private fun createImageFile(): File {
         // Create an image file name
+        val file: File
         val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
         Log.d("TimeStamp is ", timeStamp)
         val storageDir = context?.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         Log.d("mkdir dir is ", storageDir!!.exists().toString())
 
-        if (!storageDir.exists()){
+        if (!storageDir.exists() && storageDir.isDirectory) {
             try {
                 storageDir.mkdir()
-            }catch (ex : SecurityException){
+            } catch (ex: SecurityException) {
                 val errorMessage =
                     "Не удалось создать папку и сохранить файл!"
                 Toast.makeText(activity, errorMessage, Toast.LENGTH_SHORT).show()
             }
         }
+            file = File.createTempFile(
+                "JPEG_${timeStamp}_", /* prefix */
+                ".jpg", /* suffix */
+                storageDir /* directory */
+            ).apply {
+                // Save a file: path for use with ACTION_VIEW intents
+                currentPhotoPath = absolutePath
+            }
+
 
         Log.d("Storage dir is ", storageDir.toString())
-        return File.createTempFile(
-            "JPEG_${timeStamp}_", /* prefix */
-            ".jpg", /* suffix */
-            storageDir /* directory */
-        ).apply {
-            // Save a file: path for use with ACTION_VIEW intents
-            currentPhotoPath = absolutePath
-        }
-
-
+        return file
     }
 
     override fun onRequestPermissionsResult(
@@ -201,24 +202,39 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
 
         requestPermissionsCamera()
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        startActivityForResult(intent, CAMERA_REQUEST_CODE)
+    }
 
-        var photoFile: File? = null
+    private fun clickSavePicture(){
+        //var photoURI : Uri? = null
+        val photoFile: File?
+
         try {
             photoFile = createImageFile()
-        } catch (ex: IOException) {
-            // Error occurred while creating the File
+            val out = FileOutputStream(photoFile)
+            bitmap!!.compress(Bitmap.CompressFormat.JPEG, 100, out)
+            out.flush()
+            out.close()
+            MediaStore.Images.Media.insertImage(activity?.contentResolver, photoFile.absolutePath, photoFile.name, photoFile.name)
+            MediaScannerConnection.scanFile(activity, arrayOf(photoFile.toString()), null) {
+                path, uri ->
+                Log.i("ExternalStorage", "Scanned $path:")
+                Log.i("ExternalStorage", "-> uri=$uri")
+            }
+            Toast.makeText(this.activity, "Сохранил " + photoFile.path.toString(),
+                Toast.LENGTH_SHORT).show()
+        }catch (e: Exception){
+            Toast.makeText(this.activity, "Ошибка при сохранении. Повторите попытку.",
+                Toast.LENGTH_SHORT).show()
+            Log.d("MyIlnarLog2", e.toString())
         }
-
-        if (photoFile != null) {
-            val photoURI = FileProvider.getUriForFile(context!!, "etu.vt.trpo_android.provider", photoFile)
-            intent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
-        }
-        startActivityForResult(intent, CAMERA_REQUEST_CODE)
 
 //        if (photoFile != null) {
-//            val  photoURI = FileProvider.getUriForFile(context!!, "etu.vt.trpo_android", photoFile)
-//            val pictureIntent = Intent(MediaStore.EXTRA_OUTPUT, photoURI)
-//            startActivityForResult(pictureIntent, REQUEST_CAPTURE_IMAGE)
+//            photoURI = FileProvider.getUriForFile(context!!, "etu.vt.trpo_android.provider", photoFile)
+//        }
+//        if (photoURI != null) {
+//            val intent = Intent(MediaStore.EXTRA_OUTPUT, photoURI)
+//            startActivityForResult(intent, REQUEST_CAPTURE_IMAGE)
 //        }
     }
 

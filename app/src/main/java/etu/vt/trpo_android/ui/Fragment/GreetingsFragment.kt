@@ -37,7 +37,7 @@ class GreetingsFragment: MvpAppCompatFragment(), GreetingsView {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val button = view?.findViewById<Button>(R.id.btn)
+        val button = view.findViewById<Button>(R.id.btn)
         button?.setOnClickListener {
             findNavController().navigate(R.id.pictureFragment, null)
         }
