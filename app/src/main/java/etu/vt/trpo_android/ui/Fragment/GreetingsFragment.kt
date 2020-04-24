@@ -1,5 +1,6 @@
 package etu.vt.trpo_android.ui.Fragment
 
+import android.app.ActivityOptions
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -35,7 +36,7 @@ class GreetingsFragment: MvpAppCompatFragment(), GreetingsView {
 
         val button = view.findViewById<Button>(R.id.btn)
         button?.setOnClickListener {
-            findNavController().navigate(R.id.pictureFragment, null)
+            findNavController().navigate(R.id.pictureFragment, ActivityOptions.makeSceneTransitionAnimation(this.requireActivity()).toBundle())
         }
     }
 

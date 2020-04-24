@@ -33,10 +33,10 @@ class LoginFragment: MvpAppCompatFragment(), LoginView {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val button = view.findViewById<Button>(R.id.login)
-        button?.setOnClickListener {
-            findNavController().navigate(R.id.greetingsFragment2, null)
-        }
+//        val button = view.findViewById<Button>(R.id.login)
+//        button?.setOnClickListener {
+//            findNavController().navigate(R.id.greetingsFragment2, null)
+//        }
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?  ): View? {

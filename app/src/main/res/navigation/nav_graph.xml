@@ -1,17 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/nav_graph"
-    app:startDestination="@id/greetingsFragment2">
-    <fragment
-        android:id="@+id/greetingsFragment2"
-        android:name="etu.vt.trpo_android.ui.Fragment.GreetingsFragment"
-        android:label="GreetingsFragment" >
-        <action
-            android:id="@+id/action_greetingsFragment2_to_pictureFragment"
-            app:destination="@id/pictureFragment" />
-    </fragment>
+    app:startDestination="@id/pictureFragment">
     <fragment
         android:id="@+id/pictureFragment"
         android:name="etu.vt.trpo_android.ui.Fragment.PictureFragment"
-        android:label="PictureFragment" />
+        android:label="PictureFragment" >
+        <action
+            android:id="@+id/action_pictureFragment_to_instructionsFragment"
+            app:destination="@id/instructionsFragment" />
+        <action
+            android:id="@+id/action_pictureFragment_to_aboutFragment"
+            app:destination="@id/aboutFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/aboutFragment"
+        android:name="etu.vt.trpo_android.ui.Fragment.AboutFragment"
+        android:label="AboutFragment" >
+        <action
+            android:id="@+id/action_aboutFragment_to_pictureFragment"
+            app:destination="@id/pictureFragment"
+            app:popUpTo="@id/pictureFragment"/>
+    </fragment>
+    <fragment
+        android:id="@+id/instructionsFragment"
+        android:name="etu.vt.trpo_android.ui.Fragment.InstructionsFragment"
+        android:label="InstructionsFragment" >
+        <action
+            android:id="@+id/action_instructionsFragment_to_pictureFragment"
+            app:destination="@id/pictureFragment"
+            app:popUpTo="@id/pictureFragment"/>
+    </fragment>
 </navigation>
