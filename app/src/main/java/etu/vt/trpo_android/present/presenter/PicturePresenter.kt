@@ -1,12 +1,12 @@
 package etu.vt.trpo_android.present.presenter
 
-import android.Manifest
+
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityOptions
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.media.MediaScannerConnection
@@ -16,20 +16,24 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.widget.ImageView
-import android.widget.Toast
-import androidx.annotation.RequiresApi
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.fragment.app.Fragment
 import com.arellomobile.mvp.InjectViewState
 import com.arellomobile.mvp.MvpAppCompatFragment
 import com.arellomobile.mvp.MvpPresenter
+import etu.vt.trpo_android.model.ImageRequest
+import etu.vt.trpo_android.model.ImageResult
 import etu.vt.trpo_android.present.view.PictureView
+import etu.vt.trpo_android.repository.PictureRepository
 import etu.vt.trpo_android.ui.Fragment.PictureFragment
+import etu.vt.trpo_android.util.DecodeBitmapFromInputStream
+import etu.vt.trpo_android.util.PermissionManager
+import io.reactivex.Observable
+import io.reactivex.Observer
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.schedulers.Schedulers
 import java.io.*
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
 
 
 @InjectViewState
@@ -59,7 +63,7 @@ class PicturePresenter : MvpPresenter<PictureView>() {
 
     private fun getExifAngle(path: InputStream, fragment: MvpAppCompatFragment): Float {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            requestPermissionsOpenFile(fragment)
+            PermissionManager().requestPermissionsOpenFile(fragment)
         }
         var angle = 0
         try {
@@ -79,35 +83,67 @@ class PicturePresenter : MvpPresenter<PictureView>() {
         return angle.toFloat()
     }
 
-    fun onActivityResultCamera(requestCode: Int, resultCode: Int, data: Intent?, fragment: MvpAppCompatFragment, imView: ImageView) {
+    /***
+     *
+     */
+    fun onActivityResultCamera(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?,
+        fragment: MvpAppCompatFragment,
+        imView: ImageView
+    ) {
+        val imViewHeight = imView.height
+        val imViewWidth = imView.width
+        Log.d("imView width is ", imViewWidth.toString())
+        Log.d("imView height is ", imViewHeight.toString())
+
         when (requestCode) {
             CAMERA_REQUEST_CODE -> {
                 if (resultCode == Activity.RESULT_OK) {
                     //if (data != null && data.hasExtra("data")) {
                     try {
-                        //val uri = data!!.data
-                        //photoFilePath = uri?.path!!
-                        //val imgFile = File(photoFilePath)
-                        var stream = fragment.context!!.contentResolver.openInputStream(outputFile!!)
-                        val out =
-                            BitmapFactory.decodeStream(stream) //data.extras?.get("data") as Bitmap
-                        val matrix = Matrix()
-                        stream?.close()
-                        stream = fragment.context!!.contentResolver.openInputStream(outputFile!!)
-                        matrix.postRotate(getExifAngle(stream!!, fragment))
-                        PictureFragment.SingleBitmap.mbitmap =
-                            Bitmap.createBitmap(out, 0, 0, out.width, out.height, matrix, true)
+                        var stream = fragment.requireContext().contentResolver.openInputStream(outputFile!!)
+                        if (stream == null )
+                            Log.d("Stream null +++++", "imstream")
+                        val buffer = BufferedInputStream(stream!!)
+
+                        val out  = DecodeBitmapFromInputStream().run {
+                            decodeSampledBitmapFromInputStream(buffer, imViewWidth, imViewHeight)
+                        }
+                        if (out == null )
+                            Log.d("OUT null +++++", "OUT NULL")
                         stream.close()
-                        Log.d("mbitmap width is ", (PictureFragment.SingleBitmap.mbitmap!!.width).toString()) //test
-                        Log.d("mbitmap height is ", (PictureFragment.SingleBitmap.mbitmap!!.height).toString()) //test
+
+                        val matrix = Matrix()
+                        stream = fragment.requireContext().contentResolver.openInputStream(outputFile!!)
+                        matrix.postRotate(getExifAngle(stream!!, fragment))
+
+
+                        stream.close()
+                        buffer.close()
+
+                        Log.d("mbitmap width is ", PictureFragment.SingleBitmap.mbitmap?.height.toString())
+                        Log.d("mbitmap height is ", PictureFragment.SingleBitmap.mbitmap?.width.toString())
+                        PictureFragment.SingleBitmap.mbitmap =
+                            Bitmap.createBitmap(out!!, 0, 0, out.width, out.height, matrix, true)
+
                         imView.setImageBitmap(PictureFragment.SingleBitmap.mbitmap)
-                    } catch (e: Exception) {
+
+                    } catch (e: IOException) {
+                        Log.d("Can`t close streams", "Can`t close streams: $e")
+                    }
+                    catch (e: FileNotFoundException) {
+                        Log.d("Not found file", "Image file not found: $e")
+                    }
+                    catch (e: Exception) {
                         Log.d("clickTakePicture", e.toString())
                     }
-                    // }
+
                 } else if (resultCode == Activity.RESULT_CANCELED) {
                     Log.d("CAMERA_REQUEST_CODE", "Canceled")
                 }
+
             }
 
 
@@ -118,24 +154,48 @@ class PicturePresenter : MvpPresenter<PictureView>() {
                         Log.d("imageUri", data.data.toString())
 
                         photoFilePath = imageUri?.path!!
-                        //костыль
-//                            if (photoFilePath?.startsWith("/raw")!!) {
-//                                photoFilePath = photoFilePath?.replaceFirst("/raw", "")
-//                            }
-                        var imageStream = fragment.context!!.contentResolver.openInputStream(imageUri!!)
+                        var imageStream = fragment.requireContext().contentResolver.openInputStream(imageUri)
+                        val buffer = BufferedInputStream(imageStream!!)
 
-                        val out: Bitmap = BitmapFactory.decodeStream(imageStream)
-                        imageStream?.close()
-                        imageStream = fragment.context!!.contentResolver.openInputStream(imageUri!!)
+                        val out: Bitmap? = DecodeBitmapFromInputStream()
+                            .decodeSampledBitmapFromInputStream(buffer, imViewWidth, imViewHeight)
+                        if (out == null ) {
+                            Log.d("out null +", "out")
+                            viewState.pushToast("Не смог преобразовать фото")
+                        }
+
+                        try {
+                            imageStream.close()
+                            buffer.close()
+                        }catch (e: IOException){
+                            Log.d("Streams close", "Can`t close image streams")
+                        }
+
+                        imageStream = fragment.requireContext().contentResolver.openInputStream(imageUri)
+                        if (imageStream == null )
+                            Log.d("imageStream second null +", "imstream")
+
                         val matrix = Matrix()
                         matrix.postRotate(getExifAngle(imageStream!!, fragment))
                         imageStream.close()
-                        PictureFragment.SingleBitmap.mbitmap = Bitmap.createBitmap(out, 0, 0, out.width, out.height, matrix, true)
-                        Log.d("selectedImage", out.toString())
-                        imView.setImageBitmap(out)
+
+                        PictureFragment.SingleBitmap.mbitmap =
+                            Bitmap.createBitmap(out!!, 0, 0, out.width, out.height, matrix, true)
+
+                        Log.d("mbitmap width is ", PictureFragment.SingleBitmap.mbitmap?.height.toString())
+                        Log.d("mbitmap height is ", PictureFragment.SingleBitmap.mbitmap?.width.toString())
+                        Log.d("selectedImage", PictureFragment.SingleBitmap.mbitmap.toString())
+
+                        imView.setImageBitmap(PictureFragment.SingleBitmap.mbitmap)
 
 
-                    } catch (e: FileNotFoundException) {
+                    } catch (e: IOException) {
+                        Log.d("Can`t close streams", "Can`t close streams: $e")
+                    }
+                    catch (e: FileNotFoundException) {
+                        Log.d("Not found file", "Image file not found: $e")
+                    }
+                    catch (e: Exception) {
                         Log.d("clickOpenPicture", e.toString())
                     }
                 }
@@ -146,56 +206,7 @@ class PicturePresenter : MvpPresenter<PictureView>() {
         }
     }
 
-    fun requestPermissionsCamera(fragment: MvpAppCompatFragment) {
-        val permissionCamera = ContextCompat.checkSelfPermission(fragment.context!!,
-            android.Manifest.permission.CAMERA)
-
-        if (permissionCamera != PackageManager.PERMISSION_GRANTED){
-            ActivityCompat.requestPermissions(
-                fragment.requireActivity(),
-                arrayOf(
-                    Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ), MY_CAMERA_PERMISSION_REQUEST
-            )
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.Q)
-    fun requestPermissionsOpenFile(fragment: MvpAppCompatFragment) {
-        val permissionWrite = ContextCompat.checkSelfPermission(fragment.context!!,
-            android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        val permissionMedia = ContextCompat.checkSelfPermission(fragment.context!!,
-            android.Manifest.permission.ACCESS_MEDIA_LOCATION)
-
-        if (permissionWrite != PackageManager.PERMISSION_GRANTED ||
-            permissionMedia != PackageManager.PERMISSION_GRANTED){
-            ActivityCompat.requestPermissions(
-                fragment.requireActivity(),
-                arrayOf(
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.ACCESS_MEDIA_LOCATION
-                ), WRITE_READ_MEDIA_FILE_PERMISSION_REQUEST
-            )
-        }
-    }
-
-    fun requestPermissionsWriteFile(fragment: MvpAppCompatFragment) {
-        val permissionWrite = ContextCompat.checkSelfPermission(fragment.context!!,
-            android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-
-        if (permissionWrite != PackageManager.PERMISSION_GRANTED){
-            ActivityCompat.requestPermissions(
-                fragment.requireActivity(),
-                arrayOf(
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ), WRITE_READ_FILE_PERMISSION_REQUEST
-            )
-        }
-    }
-
+    @SuppressLint("SimpleDateFormat")
     @Throws(IOException::class)
     fun createImageFile(fragment: MvpAppCompatFragment): File {
         // Create an image file name
@@ -209,9 +220,8 @@ class PicturePresenter : MvpPresenter<PictureView>() {
             try {
                 storageDir.mkdir()
             } catch (ex: SecurityException) {
-                val errorMessage =
-                    "Не удалось создать папку и сохранить файл!"
-                Toast.makeText(fragment.activity, errorMessage, Toast.LENGTH_SHORT).show()
+                val errorMessage = "Не удалось создать папку и сохранить файл!"
+                viewState.pushToast(errorMessage)
             }
         }
         file = File.createTempFile(
@@ -234,11 +244,9 @@ class PicturePresenter : MvpPresenter<PictureView>() {
         grantResults: IntArray,
         fragment: MvpAppCompatFragment
     ) {
-//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
         if (grantResults.isNotEmpty() && grantResults.lastIndex+1 >= 2){
-            Toast.makeText(fragment.activity, grantResults.toString(),
-                Toast.LENGTH_SHORT).show()
+            viewState.pushToast(grantResults.toString())
+
             when(requestCode) {
                 MY_CAMERA_PERMISSION_REQUEST -> {
                     if (grantResults[0] == PackageManager.PERMISSION_GRANTED &&
@@ -265,21 +273,32 @@ class PicturePresenter : MvpPresenter<PictureView>() {
     }
 
     fun clickOpenPicture(fragment: MvpAppCompatFragment){
-        requestPermissionsWriteFile(fragment)
+        PermissionManager().requestPermissionsWriteFile(fragment)
         val intentOpenPicture = Intent(Intent.ACTION_PICK)
         intentOpenPicture.type = "image/*"
-        fragment.startActivityForResult(intentOpenPicture, OPEN_PICTURE_REQUEST_CODE, ActivityOptions.makeSceneTransitionAnimation(fragment.requireActivity()).toBundle())
+        fragment.startActivityForResult(
+            intentOpenPicture,
+            OPEN_PICTURE_REQUEST_CODE,
+            ActivityOptions.makeSceneTransitionAnimation(fragment.requireActivity()).toBundle()
+        )
     }
 
     fun clickTakePicture(fragment: MvpAppCompatFragment){
 
-        requestPermissionsCamera(fragment)
+        PermissionManager().requestPermissionsCamera(fragment)
         val file = createImageFile(fragment)
-        outputFile = FileProvider.getUriForFile(fragment.context!!, fragment.context!!.applicationContext.packageName + ".provider", file)
+        outputFile = FileProvider.getUriForFile(
+            fragment.requireContext(),
+            fragment.requireContext().applicationContext.packageName + ".provider", file
+        )
         photoFilePath = file.path
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         intent.putExtra(MediaStore.EXTRA_OUTPUT, outputFile)
-        fragment.startActivityForResult(intent, CAMERA_REQUEST_CODE, ActivityOptions.makeSceneTransitionAnimation(fragment.requireActivity()).toBundle())
+        fragment.startActivityForResult(
+            intent,
+            CAMERA_REQUEST_CODE,
+            ActivityOptions.makeSceneTransitionAnimation(fragment.requireActivity()).toBundle()
+        )
     }
 
     fun clickSavePicture(fragment: MvpAppCompatFragment){
@@ -290,18 +309,34 @@ class PicturePresenter : MvpPresenter<PictureView>() {
             PictureFragment.SingleBitmap.mbitmap!!.compress(Bitmap.CompressFormat.JPEG, 60, out)
             out.flush()
             out.close()
-            MediaStore.Images.Media.insertImage(fragment.activity?.contentResolver, photoFile!!.absolutePath, photoFile!!.name, photoFile!!.name)
+            MediaStore.Images.Media.insertImage(
+                fragment.activity?.contentResolver,
+                photoFile!!.absolutePath,
+                photoFile!!.name,
+                photoFile!!.name
+            )
             MediaScannerConnection.scanFile(fragment.activity, arrayOf(photoFile.toString()), null) {
                     path, uri ->
                 Log.i("ExternalStorage", "Scanned $path:")
                 Log.i("ExternalStorage", "-> uri=$uri")
             }
-            Toast.makeText(fragment.activity, "Сохранил " + photoFile!!.path.toString(),
-                Toast.LENGTH_SHORT).show()
+            viewState.pushToast("Сохранил " + photoFile!!.path.toString())
         }catch (e: Exception){
-            Toast.makeText(fragment.activity, "Ошибка при сохранении. Повторите попытку.",
-                Toast.LENGTH_SHORT).show()
+            viewState.pushToast("Ошибка при сохранении. Повторите попытку.")
             Log.d("MyIlnarLog2", e.toString())
         }
+    }
+
+    fun createRequestPicture(repository: PictureRepository, imageRequest: ImageRequest){
+        repository.sendPictureForResult(imageRequest)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribeOn(Schedulers.io())
+            .subscribe({
+                result ->
+                Log.d("result response", "name is ${result.name}")
+            }, {
+                error ->
+                error.printStackTrace()
+            })
     }
 }

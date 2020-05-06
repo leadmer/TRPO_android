@@ -9,18 +9,23 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.arellomobile.mvp.MvpAppCompatFragment
 import com.arellomobile.mvp.presenter.InjectPresenter
 import etu.vt.trpo_android.R
 import etu.vt.trpo_android.present.presenter.PicturePresenter
 import etu.vt.trpo_android.present.view.PictureView
+import etu.vt.trpo_android.repository.PictureRepository
+import etu.vt.trpo_android.repository.PictureRepositoryProvider
 import etu.vt.trpo_android.ui.Fragment.PictureFragment.SingleBitmap.mbitmap
+import etu.vt.trpo_android.util.PermissionManager
 
 
 class PictureFragment: MvpAppCompatFragment(), PictureView {
 
     private lateinit var imView: ImageView
+    //val pictureRepository = PictureRepositoryProvider.providePictureRepository()
 
     object SingleBitmap{
         var mbitmap: Bitmap? = null
@@ -39,38 +44,43 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?  ): View? {
-        var view = inflater.inflate(R.layout.picture_fragment, container, false)
+        val view = inflater.inflate(R.layout.picture_fragment, container, false)
         imView = view.findViewById(R.id.im_view)
 
         val pictureButton = view.findViewById<Button>(R.id.take_picture)
         val saveButton = view.findViewById<Button>(R.id.save_button)
         val openButton = view.findViewById<Button>(R.id.open_button)
+        //val sendButton = view.findViewById<Button>(R.id.send_button)
+
+//        sendButton.setOnClickListener {
+//            mPicturePresenter.createRequestPicture()
+//        }
 
         openButton.setOnClickListener {
-            if (ContextCompat.checkSelfPermission(context!!,
+            if (ContextCompat.checkSelfPermission(requireContext(),
                     android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
                 mPicturePresenter.clickOpenPicture(this)
             }
             else
-                mPicturePresenter.requestPermissionsWriteFile(this)
+                PermissionManager().requestPermissionsWriteFile(this)
         }
 
         saveButton.setOnClickListener {
-            if (ContextCompat.checkSelfPermission(context!!,
+            if (ContextCompat.checkSelfPermission(requireContext(),
                     android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
                 mPicturePresenter.clickSavePicture(this)
             }
             else
-                mPicturePresenter.requestPermissionsWriteFile(this)
+                PermissionManager().requestPermissionsWriteFile(this)
         }
 
         pictureButton.setOnClickListener {
-            if (ContextCompat.checkSelfPermission(context!!,
+            if (ContextCompat.checkSelfPermission(requireContext(),
                     android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED){
                 mPicturePresenter.clickTakePicture(this)
             }
             else
-                mPicturePresenter.requestPermissionsCamera(this)
+                PermissionManager().requestPermissionsCamera(this)
         }
         return view
     }
@@ -98,4 +108,9 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
             imView.setImageBitmap(mbitmap)
         }
     }
+
+    override fun pushToast(str: String) {
+        Toast.makeText(context, str, Toast.LENGTH_SHORT).show()
+    }
+
 }

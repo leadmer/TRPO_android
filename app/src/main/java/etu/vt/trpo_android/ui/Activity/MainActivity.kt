@@ -40,10 +40,10 @@ class MainActivity : AppCompatActivity() {
             R.id.action_about ->{
                 return if (PictureFragment.SingleBitmap.mbitmap != null) {
                     bundleNav?.putParcelable("mbitmap", PictureFragment.SingleBitmap.mbitmap)
-                    navCon.navigate(R.id.instructionsFragment, bundleNav)
+                    navCon.navigate(R.id.aboutFragment, bundleNav)
                     true
                 }else {
-                    navCon.navigate(R.id.instructionsFragment, bundleNav)
+                    navCon.navigate(R.id.aboutFragment, bundleNav)
                     true
                 }
             }

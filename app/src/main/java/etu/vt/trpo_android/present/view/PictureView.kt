@@ -4,4 +4,5 @@ import com.arellomobile.mvp.MvpView
 
 interface PictureView: MvpView {
     fun showPicture()
+    fun pushToast(str: String)
 }
