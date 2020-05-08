@@ -25,7 +25,7 @@ import etu.vt.trpo_android.util.PermissionManager
 class PictureFragment: MvpAppCompatFragment(), PictureView {
 
     private lateinit var imView: ImageView
-    //val pictureRepository = PictureRepositoryProvider.providePictureRepository()
+    val pictureRepository = PictureRepositoryProvider.providePictureRepository()
 
     object SingleBitmap{
         var mbitmap: Bitmap? = null
@@ -50,11 +50,19 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
         val pictureButton = view.findViewById<Button>(R.id.take_picture)
         val saveButton = view.findViewById<Button>(R.id.save_button)
         val openButton = view.findViewById<Button>(R.id.open_button)
-        //val sendButton = view.findViewById<Button>(R.id.send_button)
+        val sendButton = view.findViewById<Button>(R.id.send_button)
 
-//        sendButton.setOnClickListener {
-//            mPicturePresenter.createRequestPicture()
-//        }
+        sendButton.setOnClickListener {
+            if (ContextCompat.checkSelfPermission(requireContext(),
+                    android.Manifest.permission.INTERNET) == PackageManager.PERMISSION_GRANTED){
+                val request = mPicturePresenter.prepareImageRequest(mbitmap)
+                mPicturePresenter.createRequestPicture(pictureRepository, request)
+            }
+            else
+                PermissionManager().requestPermissionsInternet(this)
+        }
+
+
 
         openButton.setOnClickListener {
             if (ContextCompat.checkSelfPermission(requireContext(),
@@ -103,9 +111,9 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
         mPicturePresenter.requestPermissionsResult(requestCode, permissions, grantResults, this)
     }
 
-    override fun showPicture() {
-        if (mbitmap != null) {
-            imView.setImageBitmap(mbitmap)
+    override fun showPicture(bitmap: Bitmap?) {
+        if (bitmap != null) {
+            imView.setImageBitmap(bitmap)
         }
     }
 

@@ -13,9 +13,10 @@ class PermissionManager{
     private val MY_CAMERA_PERMISSION_REQUEST = 100
     private val WRITE_READ_FILE_PERMISSION_REQUEST = 102
     private val WRITE_READ_MEDIA_FILE_PERMISSION_REQUEST = 103
+    private val INTERNET_PERMISSION_REQUEST = 104
 
     fun requestPermissionsCamera(fragment: MvpAppCompatFragment) {
-        val permissionCamera = ContextCompat.checkSelfPermission(fragment.context!!,
+        val permissionCamera = ContextCompat.checkSelfPermission(fragment.requireContext(),
             Manifest.permission.CAMERA)
 
         if (permissionCamera != PackageManager.PERMISSION_GRANTED){
@@ -31,9 +32,9 @@ class PermissionManager{
 
     @RequiresApi(Build.VERSION_CODES.Q)
     fun requestPermissionsOpenFile(fragment: MvpAppCompatFragment) {
-        val permissionWrite = ContextCompat.checkSelfPermission(fragment.context!!,
+        val permissionWrite = ContextCompat.checkSelfPermission(fragment.requireContext(),
             Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        val permissionMedia = ContextCompat.checkSelfPermission(fragment.context!!,
+        val permissionMedia = ContextCompat.checkSelfPermission(fragment.requireContext(),
             Manifest.permission.ACCESS_MEDIA_LOCATION)
 
         if (permissionWrite != PackageManager.PERMISSION_GRANTED ||
@@ -50,7 +51,7 @@ class PermissionManager{
     }
 
     fun requestPermissionsWriteFile(fragment: MvpAppCompatFragment) {
-        val permissionWrite = ContextCompat.checkSelfPermission(fragment.context!!,
+        val permissionWrite = ContextCompat.checkSelfPermission(fragment.requireContext(),
             Manifest.permission.WRITE_EXTERNAL_STORAGE)
 
         if (permissionWrite != PackageManager.PERMISSION_GRANTED){
@@ -60,6 +61,20 @@ class PermissionManager{
                     Manifest.permission.WRITE_EXTERNAL_STORAGE,
                     Manifest.permission.READ_EXTERNAL_STORAGE
                 ), WRITE_READ_FILE_PERMISSION_REQUEST
+            )
+        }
+    }
+
+    fun requestPermissionsInternet(fragment: MvpAppCompatFragment) {
+        val permissionInternet = ContextCompat.checkSelfPermission(fragment.requireContext(),
+            Manifest.permission.INTERNET)
+
+        if (permissionInternet != PackageManager.PERMISSION_GRANTED){
+            ActivityCompat.requestPermissions(
+                fragment.requireActivity(),
+                arrayOf(
+                    Manifest.permission.INTERNET
+                ), INTERNET_PERMISSION_REQUEST
             )
         }
     }
