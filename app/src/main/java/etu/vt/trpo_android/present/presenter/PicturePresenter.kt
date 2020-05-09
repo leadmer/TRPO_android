@@ -15,34 +15,27 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.util.Base64
 import android.util.Log
 import android.widget.ImageView
 import androidx.core.content.FileProvider
 import com.arellomobile.mvp.InjectViewState
 import com.arellomobile.mvp.MvpAppCompatFragment
 import com.arellomobile.mvp.MvpPresenter
-import com.google.gson.Gson
-import etu.vt.trpo_android.model.ImageRequest
-import etu.vt.trpo_android.model.ImageResult
 import etu.vt.trpo_android.present.view.PictureView
 import etu.vt.trpo_android.repository.PictureRepository
 import etu.vt.trpo_android.ui.Fragment.PictureFragment
 import etu.vt.trpo_android.util.DecodeBitmapFromInputStream
 import etu.vt.trpo_android.util.PermissionManager
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.functions.Action
-import io.reactivex.schedulers.Schedulers
-import okhttp3.MediaType
-import okhttp3.OkHttpClient
-import okhttp3.RequestBody
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 
 @InjectViewState
@@ -281,7 +274,7 @@ class PicturePresenter : MvpPresenter<PictureView>() {
 
                 INTERNET_PERMISSION_REQUEST -> {
                     if (grantResults[0] == PackageManager.PERMISSION_GRANTED)
-                        prepareImageRequest(PictureFragment.SingleBitmap.mbitmap, fragment)
+                        prepareImageRequest(PictureFragment.SingleBitmap.mbitmap,  fragment)
                 }
             }
         }
@@ -317,7 +310,6 @@ class PicturePresenter : MvpPresenter<PictureView>() {
     }
 
     fun clickSavePicture(fragment: MvpAppCompatFragment){
-        //val photoFile: File?
         try {
             photoFile = createImageFile(fragment)
             val out = FileOutputStream(photoFile)
@@ -342,48 +334,34 @@ class PicturePresenter : MvpPresenter<PictureView>() {
         }
     }
 
-    fun createRequestPicture(repository: PictureRepository, imageRequest: ImageRequest){
-        //val gsonRequest = Gson().newBuilder().setPrettyPrinting().create().toJson(imageRequest)
-        //imageRequest.arrPicture = "/9j/4AAQSkZJRgABAQAAAQABAAD/"
-        Log.d("imageJSON", imageRequest.arrPicture)
+    fun createRequestPicture(repository: PictureRepository, imageRequest: MultipartBody.Part){
+        Log.d("imageDataBody", imageRequest.body.toString())
         val call = repository.sendPictureForResult(imageRequest)
-            call.enqueue(object : Callback<ImageResult>{
+            call.enqueue(object : Callback<ResponseBody>{
 
-                override fun onResponse(call: Call<ImageResult>, response: Response<ImageResult>) {
+                override fun onResponse(
+                    call: Call<ResponseBody>,
+                    response: Response<ResponseBody>
+                ) {
                     if (response.isSuccessful){
-                        Log.d("response succ", response.body()!!.content)
-                        Log.d("response succ", response.body()!!.arrPicture)
-                        viewState.pushToast("response succ : ${response.body()!!.content}")
+                        Log.d("response succ", response.body().toString())
+                        Log.d("response succ", response.body()?.bytes().toString())
+                        viewState.pushToast("SUCCESS content-type: ${response.body()?.contentType().toString()} \n" +
+                                "Body: ${response.body().toString()}")
                     }
                 }
 
-                override fun onFailure(call: Call<ImageResult>, t: Throwable) {
-                    Log.d("response fail", t.localizedMessage!!)
-                    viewState.pushToast("response fail : ${t.localizedMessage!!}")
+                override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                    Log.d("FAILED", t.localizedMessage!!)
+                    viewState.pushToast("FAILED : ${t.localizedMessage!!}")
                 }
             })
-//            .observeOn(AndroidSchedulers.mainThread())
-//            .subscribeOn(Schedulers.io())
-//            .doOnNext {
-//                val content = Gson().fromJson(it.getOrNull()?.content, String::class.java)
-//                Log.d("onnext response", "name is $content")
-//            }
-//            .doOnComplete {
-//                Log.d("oncomplete", "qweqsdawd")
-//            }
-//            .subscribe({
-//                result ->
-//                val content = Gson().fromJson(result.getOrNull()?.content, String::class.java)
-//                Log.d("result response", "name is $content")
-//            }, {
-//                error ->
-//                Log.d("error response", "name is ${error.message}")
-//            })
     }
 
-    fun prepareImageRequest(bitmap : Bitmap?, fragment: MvpAppCompatFragment): ImageRequest{
+    fun prepareImageRequest(bitmap : Bitmap?, fragment: MvpAppCompatFragment): MultipartBody.Part{
         if (bitmap == null)
             throw Exception("Bitmap is null")
+
         val file = File.createTempFile(
             "compresbitmap",
             null, fragment.context?.getExternalFilesDir(Environment.DIRECTORY_DCIM)
@@ -403,6 +381,11 @@ class PicturePresenter : MvpPresenter<PictureView>() {
         viewState.showPicture(bit)
         val byteArr = byteArrOutStr.toByteArray()
         byteArrOutStr.close()
-        return ImageRequest(Base64.encodeToString(byteArr, Base64.NO_WRAP))
+
+        val requestFile = file
+            .asRequestBody(fragment.context?.contentResolver?.getType(Uri.fromFile(file))
+                ?.toMediaTypeOrNull())
+
+        return MultipartBody.Part.createFormData("imageRequest", file.name, requestFile)
     }
 }

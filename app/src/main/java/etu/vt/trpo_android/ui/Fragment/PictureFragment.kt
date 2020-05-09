@@ -55,7 +55,7 @@ class PictureFragment: MvpAppCompatFragment(), PictureView {
         sendButton.setOnClickListener {
             if (ContextCompat.checkSelfPermission(requireContext(),
                     android.Manifest.permission.INTERNET) == PackageManager.PERMISSION_GRANTED){
-                val request = mPicturePresenter.prepareImageRequest(mbitmap)
+                val request = mPicturePresenter.prepareImageRequest(mbitmap,this)
                 mPicturePresenter.createRequestPicture(pictureRepository, request)
             }
             else
